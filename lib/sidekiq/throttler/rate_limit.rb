@@ -1,3 +1,5 @@
+require 'thread'
+
 module Sidekiq
   class Throttler
     ##
@@ -166,6 +168,8 @@ module Sidekiq
 
       private
 
+      SEMAPHORE = Mutex.new
+
       ##
       # Fetch the number of jobs executed by the provided `RateLimit`.
       #
@@ -174,7 +178,7 @@ module Sidekiq
       # @return [Integer]
       #   The current number of jobs executed.
       def self.count(limiter)
-        Thread.exclusive do
+        SEMAPHORE.synchronize do
           prune(limiter)
           limiter.executions.count(limiter.key)
         end
@@ -188,7 +192,7 @@ module Sidekiq
       # @return [Integer]
       #   The current number of jobs executed.
       def self.increment(limiter)
-        Thread.exclusive do
+        SEMAPHORE.synchronize do
           limiter.executions.append(limiter.key, Time.now)
         end
         count(limiter)
